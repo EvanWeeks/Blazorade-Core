@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Components;
 using System;
 using System.Collections.Generic;
+using System.Dynamic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -18,7 +19,7 @@ namespace Blazorade.Core.Components
         protected BlazoradeComponentBase()
         {
             this.Attributes = new Dictionary<string, object>();
-            this.Classes = new List<string>();
+            this.MergedClasses = new List<string>();
             this.Styles = new Dictionary<string, string>();
         }
 
@@ -33,25 +34,36 @@ namespace Blazorade.Core.Components
         /// <summary>
         /// Returns a read-only copy of the classes defined on the component. 
         /// </summary>
-        public IReadOnlyCollection<string> Classes { get; private set; }
+        public IReadOnlyCollection<string> MergedClasses { get; private set; }
+
+        /// <summary>
+        /// A space-delimited string of classes that will be permanently assigned to this component.
+        /// </summary>
+        [Parameter]
+        public string Classes { get; set; }
 
         /// <summary>
         /// Returns a read-only copy of the inline styles defined on the component.
         /// </summary>
         public IReadOnlyDictionary<string, string> Styles { get; set; }
 
-
+        protected override void OnParametersSet()
+        {
+            AddInlineClasses();
+            base.OnParametersSet();
+        }
 
         public override Task SetParametersAsync(ParameterView parameters)
         {
             this.Attributes.Clear();
-            this.Classes = new List<string>();
+            this.MergedClasses = new List<string>();
             this.Styles = new Dictionary<string, string>();
+
+            // (re-)add in the inline-defined classes.
+            AddInlineClasses();
 
             return base.SetParametersAsync(parameters);
         }
-
-
 
         /// <summary>
         /// Adds an attribute to the <see cref="this.Attributes"/> dictionary.
@@ -66,13 +78,13 @@ namespace Blazorade.Core.Components
         }
 
         /// <summary>
-        /// Adds the given classes to the <see cref="Classes"/> collection.
+        /// Adds the given classes to the <see cref="MergedClasses"/> collection.
         /// </summary>
         /// <param name="classNames">An array of class names to add.</param>
         /// <returns>Returns the component instance.</returns>
         protected BlazoradeComponentBase AddClasses(params string[] classNames)
         {
-            var list = (ICollection<string>)this.Classes;
+            var list = (ICollection<string>)this.MergedClasses;
 
             if(null != classNames)
             {
@@ -118,13 +130,13 @@ namespace Blazorade.Core.Components
         }
 
         /// <summary>
-        /// Removes the given class from the <see cref="Classes"/> collection.
+        /// Removes the given class from the <see cref="MergedClasses"/> collection.
         /// </summary>
         /// <param name="className">The class name to remove.</param>
         /// <returns>Returns the component instance.</returns>
         protected BlazoradeComponentBase RemoveClass(string className)
         {
-            var list = (ICollection<string>)this.Classes;
+            var list = (ICollection<string>)this.MergedClasses;
             if(list.Contains(className))
             {
                 list.Remove(className);
@@ -149,13 +161,19 @@ namespace Blazorade.Core.Components
             return this;
         }
 
-
+        private void AddInlineClasses()
+        {
+            if(!string.IsNullOrEmpty(Classes))
+            {
+                this.AddClasses(Classes);
+            }
+        }
 
         private void BuildClassAttribute()
         {
-            if(this.Classes.Count > 0)
+            if(this.MergedClasses.Count > 0)
             {
-                this.AddAttribute("class", string.Join(" ", this.Classes));
+                this.AddAttribute("class", string.Join(" ", this.MergedClasses));
             }
             else
             {
